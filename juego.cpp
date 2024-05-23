@@ -7,7 +7,6 @@
 
 #include <sstream>
 
-
 using namespace std;
 using namespace miniwin;
 
@@ -18,21 +17,21 @@ const int margen = 20;
 const int limite_margen = 40;
 
 const int ENEMY_UPDATE = 50;
-const int ENEMY_SPEED = 2;
+const int BASE_ENEMY_SPEED = 2; // Velocidad base de los enemigos
 const int ENEMY_SIZE = 20;
 
-const int SHIP_SPEED = 20;
+const int SHIP_SPEED = 30;
 const int SHIP_SIZE = 50;
 
 const int BULLET_SPEED = 10;
 const int BULLET_SIZE = 5;
 
-int puntaje = 0; 
+int puntaje = 0;
 int vidas = 150;
 int contador_aumentar_vidas = 0;
 
 int enemigos_pasados = 0;
-
+int nivel = 1; // Nivel inicial
 
 template <typename T>
 class StringConverter {
@@ -77,9 +76,10 @@ private:
     int x, y;
     int tam = ENEMY_SIZE;
     bool activo = true;
+    int velocidad;
 
 public:
-    Enemigo(int _x, int _y) : x(_x), y(_y) {}
+    Enemigo(int _x, int _y, int _velocidad) : x(_x), y(_y), velocidad(_velocidad) {}
 
     void dibuja() const
     {
@@ -92,7 +92,7 @@ public:
 
     void mueve()
     {
-        y += ENEMY_SPEED; // Mover hacia abajo
+        y += velocidad; // Mover hacia abajo
         if (y > HEIGHT - margen - tam)
         {                   // Suponiendo una altura de ventana de 600
             activo = false; // Desactivar si sale de la pantalla
@@ -109,15 +109,14 @@ public:
                 activo = false;
                 puntaje += 20;
                 
-                if(puntaje % 100 == 0 && puntaje != 0){
-                	vidas += 100;
-                	contador_aumentar_vidas ++;
-				}
+                if (puntaje % 100 == 0 && puntaje != 0) {
+                    vidas += 100;
+                    contador_aumentar_vidas++;
+                }
                 break;
             }
         }
     }
-    
 
     bool esta_activo() const { return activo; }
     int get_x() const { return x; }
@@ -148,10 +147,7 @@ public:
 
     void mueve(int dx, int dy)
     {
-        // x += dx;
-        // y += dy;
-        // Limitar movimiento a la ventana
-        x = max(tam / 2 + (limite_margen+10), min(WIDTH - tam / 2 - (limite_margen+10), x + dx));
+        x = max(tam / 2 + (limite_margen + 10), min(WIDTH - tam / 2 - (limite_margen + 10), x + dx));
         y = max(tam / 2 + limite_margen, min(HEIGHT - tam / 2 - limite_margen, y + dy));
     }
 
@@ -176,107 +172,127 @@ public:
     }
     
     void colision(const vector<Enemigo> &enemigos)
-   {
-    // Verificar colisión con cada enemigo que colisione
-    for (int i = 0; i < enemigos.size(); ++i)
     {
-        if (abs(enemigos[i].get_x() - x) < tam && abs(enemigos[i].get_y() - y) < tam)
+        // Verificar colisiÃ³n con cada enemigo que colisione
+        for (int i = 0; i < enemigos.size(); ++i)
         {
-            vidas--; // Reducir la vida en 1
-            break;
+            if (abs(enemigos[i].get_x() - x) < tam && abs(enemigos[i].get_y() - y) < tam)
+            {
+                vidas--; // Reducir la vida en 1
+                break;
+            }
         }
     }
-
-   }
-
 
     const vector<Bala> &get_balas() const { return balas; }
 };
 
-
 int main()
 {
     srand(time(0)); // Inicializar semilla aleatoria
-    vredimensiona(WIDTH, HEIGHT); //Tamaño de la pantalla	  
-	
+    vredimensiona(WIDTH, HEIGHT); // TamaÃ±o de la pantalla
+
     Nave miNave(300, HEIGHT - (limite_margen + 30));
     vector<Enemigo> enemigos;
 
     int contador = 0;
     bool fin = false;
+    bool reiniciar = false; // Variable para reiniciar el juego
+
     while (!fin)
     {
+        if (reiniciar) // Si se reinicia el juego
+        {
+            puntaje = 0;
+            vidas = 150;
+            contador_aumentar_vidas = 0;
+            enemigos_pasados = 0;
+            nivel = 1;
+            enemigos.clear();
+            reiniciar = false;
+        }
+
         if (++contador % ENEMY_UPDATE == 0)
         {
-            enemigos.push_back(Enemigo(limite_margen + rand() % (WIDTH - 2 * (limite_margen + 10)), 70));
+            enemigos.push_back(Enemigo(limite_margen + rand() % (WIDTH - 2 * (limite_margen + 10)), 70, BASE_ENEMY_SPEED + nivel));
         }
 
         borra();
-        dibujar_marco(WIDTH, HEIGHT, margen, 40);     
-        
-        miNave.dibuja();
+        dibujar_marco(WIDTH, HEIGHT, margen, 40);
 
-        string puntaje_str = "Puntaje: " + StringConverter<int>::to_string(puntaje);
-        texto(margen, margen, puntaje_str);
-        
-        miNave.actualizaBalas();
-        miNave.colision(enemigos); 
-        
-        string vidas_str = "Vidas: " + StringConverter<int>::to_string(vidas + contador_aumentar_vidas);
-        texto(margen + 120, margen, vidas_str);
-        
-        string masVidas_str = "Vidas Aumentadas: " + StringConverter<int>::to_string(contador_aumentar_vidas);
-        texto(margen + 240, margen, masVidas_str);
-        
-        if (vidas == 0) {
-        fin = true; 
+        miNave.dibuja();
+    string puntaje_str = "Puntaje: " + StringConverter<int>::to_string(puntaje);
+    texto(margen, margen, puntaje_str);
+
+    miNave.actualizaBalas();
+    miNave.colision(enemigos);
+
+    string vidas_str = "Vidas: " + StringConverter<int>::to_string(vidas + contador_aumentar_vidas);
+    texto(margen + 120, margen, vidas_str);
+
+    string masVidas_str = "Vidas Aumentadas: " + StringConverter<int>::to_string(contador_aumentar_vidas);
+    texto(margen + 240, margen, masVidas_str);
+
+    string nivel_str = "Nivel: " + StringConverter<int>::to_string(nivel);
+    texto(margen + 460, margen, nivel_str); // Texto normal para el nivel
+
+    if (vidas == 0) {
+        fin = true;
         break;
     }
-    
-        if (enemigos_pasados >= 3) {
-                fin = true;
-                break;
-        }
-        
 
-        for (vector<Enemigo>::iterator it = enemigos.begin(); it != enemigos.end();)
-        {
-            it->mueve();
-            it->colision(miNave.get_balas());
-            if (it->esta_activo())
-            {
-                it->dibuja();
-                ++it;
-            }
-            else
-            {
-                it = enemigos.erase(it); // Eliminar enemigos inactivos
-            }
-        }
-        
-
-        refresca();
-
-        int t = tecla();
-        switch (t)
-        {
-        case DERECHA:
-            miNave.mueve(SHIP_SPEED, 0);
-            break;
-        case IZQUIERDA:
-            miNave.mueve(-SHIP_SPEED, 0);
-            break;
-        case ARRIBA:
-            miNave.dispara();
-            break;
-        case ESCAPE:
-            fin = true;
-            break;
-        }
-        espera(1);
+    if (enemigos_pasados >= 3) {
+        fin = true;
+        break;
     }
-    
-    mensaje("---------------¡GAME OVER!---------------"); 
 
-    return 0;
+    for (vector<Enemigo>::iterator it = enemigos.begin(); it != enemigos.end();)
+    {
+        it->mueve();
+        it->colision(miNave.get_balas());
+        if (it->esta_activo())
+        {
+            it->dibuja();
+            ++it;
+        }
+        else
+        {
+            it = enemigos.erase(it); // Eliminar enemigos inactivos
+        }
+    }
+
+    // Aumentar nivel cada 500 puntos
+    if (puntaje > 0 && puntaje % 200 == 0) {
+        nivel++;
+        puntaje += 10; // Para evitar incrementar nivel nuevamente inmediatamente
+    }
+
+    refresca();
+
+    int t = tecla();
+    switch (t)
+    {
+    case DERECHA:
+        miNave.mueve(SHIP_SPEED, 0);
+        break;
+    case IZQUIERDA:
+        miNave.mueve(-SHIP_SPEED, 0);
+        break;
+    case ESPACIO:
+        miNave.dispara();
+        break;
+    case 'r': // Reiniciar el juego al presionar la tecla 'r'
+        reiniciar = true;
+        break;
+    case ESCAPE:
+        fin = true;
+        break;
+    }
+    espera(1);
+}
+
+mensaje("---------------Â¡GAME OVER!---------------");
+
+return 0;
+}
 }
